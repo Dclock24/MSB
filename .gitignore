@@ -1,0 +1,5 @@
+target/
+**/*.log
+macro_strike_bot
+.DS_Store
+
