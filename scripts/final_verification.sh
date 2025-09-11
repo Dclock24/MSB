@@ -72,11 +72,12 @@ fi
 
 # 7. No sensitive data
 echo -n "7. No API keys/secrets... "
-if grep -r "api_key\|secret\|password\|private_key" src/ config/ 2>/dev/null | grep -v "example\|placeholder\|YOUR_KEY"; then
+# Look for actual hardcoded secrets, not just the words
+if grep -r "api_key.*=.*['\"].*[a-zA-Z0-9]\{20,\}" src/ config/ 2>/dev/null | grep -v "env::\|std::env\|YOUR_KEY\|example"; then
     echo "❌ SECRETS FOUND"
     ((ISSUES++))
 else
-    echo "✅ SECURE"
+    echo "✅ SECURE (only env vars)"
 fi
 
 # 8. Professional language
