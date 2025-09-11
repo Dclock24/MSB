@@ -6,6 +6,79 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use std::collections::HashMap;
 
+/// Circuit breaker for emergency stops
+#[derive(Debug)]
+pub struct CircuitBreaker {
+    /// Is the circuit open (tripped)?
+    is_open: Arc<std::sync::atomic::AtomicBool>,
+    /// Number of failures
+    failure_count: Arc<std::sync::atomic::AtomicUsize>,
+    /// Failure threshold
+    failure_threshold: usize,
+    /// Reset time
+    reset_after: Duration,
+    /// Last failure time
+    last_failure: Arc<RwLock<Option<SystemTime>>>,
+}
+
+impl CircuitBreaker {
+    pub fn new(failure_threshold: usize, reset_after: Duration) -> Self {
+        Self {
+            is_open: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            failure_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            failure_threshold,
+            reset_after,
+            last_failure: Arc::new(RwLock::new(None)),
+        }
+    }
+    
+    pub async fn call<F, T, E>(&self, f: F) -> Result<T, E>
+    where
+        F: FnOnce() -> Result<T, E>,
+        E: std::fmt::Debug,
+    {
+        // Check if circuit should be reset
+        if self.is_open.load(std::sync::atomic::Ordering::Relaxed) {
+            let last = self.last_failure.read().await;
+            if let Some(last_time) = *last {
+                if SystemTime::now().duration_since(last_time).unwrap_or_default() > self.reset_after {
+                    self.is_open.store(false, std::sync::atomic::Ordering::Relaxed);
+                    self.failure_count.store(0, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+        }
+        
+        // Check if circuit is open
+        if self.is_open.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(std::fmt::Error.into());
+        }
+        
+        // Try the operation
+        match f() {
+            Ok(result) => {
+                // Reset failure count on success
+                self.failure_count.store(0, std::sync::atomic::Ordering::Relaxed);
+                Ok(result)
+            }
+            Err(e) => {
+                // Increment failure count
+                let failures = self.failure_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                
+                // Update last failure time
+                *self.last_failure.write().await = Some(SystemTime::now());
+                
+                // Trip circuit if threshold reached
+                if failures >= self.failure_threshold {
+                    self.is_open.store(true, std::sync::atomic::Ordering::Relaxed);
+                    log::error!("Circuit breaker tripped after {} failures", failures);
+                }
+                
+                Err(e)
+            }
+        }
+    }
+}
+
 /// Safety configuration
 #[derive(Debug, Clone)]
 pub struct SafetyConfig {
