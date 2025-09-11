@@ -18,6 +18,14 @@ serde_urlencoded = "0.7"
 async-trait = "0.1"
 chrono = "0.4"
 
+# Optional EIP integration dependencies
+ethers = { version = "2.0", features = ["ws", "rustls"], optional = true }
+ethers-contract = { version = "2.0", optional = true }
+
+[features]
+default = []
+eip = ["ethers", "ethers-contract"]
+
 [profile.release]
 opt-level = 3
 lto = true

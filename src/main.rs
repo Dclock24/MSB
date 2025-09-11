@@ -16,6 +16,9 @@ mod strike_optimizer;
 mod trading_engine;
 // Opportunity scanner - finds 90% win rate patterns
 mod opportunity_scanner;
+// EIP integration for on-chain trading
+#[cfg(feature = "eip")]
+mod eip;
 
 // MACRO STRIKE CONFIGURATION - 2500 TRADES
 const TOTAL_TRADES: usize = 2500;
