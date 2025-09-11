@@ -3,3 +3,4 @@ target/
 macro_strike_bot
 .DS_Store
 
+reports/*.html
