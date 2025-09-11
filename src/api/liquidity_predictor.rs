@@ -450,6 +450,6 @@ mod tests {
         let (should_trade, prediction) = predictor.should_execute_trade("BTC/USDT", 50_000.0).await.unwrap();
         
         assert!(prediction.confidence > 0.0);
-        println!("Should trade: {}, Prediction: {:?}", should_trade, prediction);
+        log::info!("Should trade: {}, Prediction: {:?}", should_trade, prediction);
     }
 }

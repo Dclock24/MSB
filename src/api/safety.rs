@@ -32,7 +32,7 @@ impl CircuitBreaker {
         }
     }
     
-    pub async fn call<F, T, E>(&self, f: F) -> Result<T, E>
+    pub async fn call<F, T, E>(&self, f: F) -> Result<T, String>
     where
         F: FnOnce() -> Result<T, E>,
         E: std::fmt::Debug,
@@ -50,7 +50,7 @@ impl CircuitBreaker {
         
         // Check if circuit is open
         if self.is_open.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(std::fmt::Error.into());
+            return Err("Circuit breaker is open".to_string());
         }
         
         // Try the operation
@@ -73,7 +73,7 @@ impl CircuitBreaker {
                     log::error!("Circuit breaker tripped after {} failures", failures);
                 }
                 
-                Err(e)
+                Err(format!("Operation failed: {:?}", e))
             }
         }
     }
