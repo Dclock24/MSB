@@ -96,19 +96,37 @@ type TradingEngine struct {
 	KrakenAPIKey       string
 	KrakenAPISecret    string
 	OrderUSDSize       float64
+
+	// Risk & campaign
+	OrderRiskPct       float64
+	CampaignStart      time.Time
+	CampaignDays       int
+	MaxDrawdownPct     float64
 }
 
 // Constants
 const (
 	TotalTrades           = 2500
-	InitialCapital        = 100000000 // $1M in cents
-	TargetCapital         = 600000000 // $6M in cents
+	InitialCapital        = 10000000  // $100k in cents
+	TargetCapital         = 11850000  // $118.5k in cents (18.5% in window)
 	StrikeForce           = 0.15      // 15% of capital per strike
 	PrecisionThreshold    = 0.85      // 85% confidence required
-	ImpactMultiplier      = 3.0       // 3x leverage on strikes
 	MaxExposureTimeMs     = 30000     // 30 seconds max exposure
 	StrikeCooldownMs      = 1         // 1ms cooldown
 	MaxConsecutiveMisses  = 20        // Max consecutive misses before emergency stop
+)
+
+// Leverage policy (applies in simulation/PNL model). Live spot orders are unlevered but log intended leverage.
+const (
+    MinLeverage = 3
+    MaxLeverage = 5
+)
+
+// Simulation PnL parameters
+const (
+    RoundTripFeePct = 0.0016 // 0.16% total fees
+    SimTakeProfitPct = 0.003 // 0.30% TP
+    SimStopLossPct   = 0.0025 // 0.25% SL
 )
 
 var symbols = []string{
@@ -129,7 +147,25 @@ func NewTradingEngine() *TradingEngine {
 			orderSize = f
 		}
 	}
-	return &TradingEngine{
+	orderRisk := 0.01
+	if v := os.Getenv("ORDER_RISK_PCT"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+			orderRisk = f / 100.0
+		}
+	}
+	campaignDays := 5
+	if v := os.Getenv("CAMPAIGN_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			campaignDays = n
+		}
+	}
+	maxDD := 10.0
+	if v := os.Getenv("MAX_DRAWDOWN_PCT"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+			maxDD = f
+		}
+	}
+	te := &TradingEngine{
 		Capital:             InitialCapital,
 		TargetCapital:       TargetCapital,
 		PeakCapital:         InitialCapital,
@@ -140,7 +176,16 @@ func NewTradingEngine() *TradingEngine {
 		KrakenAPIKey:        os.Getenv("KRAKEN_API_KEY"),
 		KrakenAPISecret:     os.Getenv("KRAKEN_API_SECRET"),
 		OrderUSDSize:        orderSize,
+		OrderRiskPct:        orderRisk,
+		CampaignStart:       time.Now(),
+		CampaignDays:        campaignDays,
+		MaxDrawdownPct:      maxDD,
 	}
+	// In simulation mode, raise target capital to avoid early stop
+	if os.Getenv("SIM_MODE") == "1" {
+		te.TargetCapital = te.Capital * 100 // allow growth without early stop
+	}
+	return te
 }
 
 // krakenPair maps our symbol to Kraken's pair code
@@ -212,6 +257,19 @@ func (te *TradingEngine) krakenPrivate(path string, data url.Values) (map[string
 	}
 	return out, nil
 }
+// krakenPrivateWithRetry wraps krakenPrivate with simple retry/backoff
+func (te *TradingEngine) krakenPrivateWithRetry(path string, data url.Values) (map[string]interface{}, error) {
+    var lastErr error
+    for i := 0; i < 3; i++ {
+        res, err := te.krakenPrivate(path, data)
+        if err == nil {
+            return res, nil
+        }
+        lastErr = err
+        time.Sleep(time.Duration(500*(i+1)) * time.Millisecond)
+    }
+    return nil, lastErr
+}
 
 // placeMarketOrder places a market buy order sized by USD
 func (te *TradingEngine) placeMarketOrder(pair string, side string, usdSize float64, price float64) (string, error) {
@@ -225,7 +283,7 @@ func (te *TradingEngine) placeMarketOrder(pair string, side string, usdSize floa
 	vals.Set("ordertype", "market")
 	vals.Set("volume", fmt.Sprintf("%.8f", volume))
 
-	res, err := te.krakenPrivate("/0/private/AddOrder", vals)
+	res, err := te.krakenPrivateWithRetry("/0/private/AddOrder", vals)
 	if err != nil {
 		return "", err
 	}
@@ -241,7 +299,7 @@ func (te *TradingEngine) placeMarketOrder(pair string, side string, usdSize floa
 func (te *TradingEngine) getOrder(txid string) (map[string]interface{}, error) {
     vals := url.Values{}
     vals.Set("txid", txid)
-    return te.krakenPrivate("/0/private/QueryOrders", vals)
+    return te.krakenPrivateWithRetry("/0/private/QueryOrders", vals)
 }
 
 // placeMarketExit sells the filled quantity at market
@@ -251,7 +309,7 @@ func (te *TradingEngine) placeMarketExit(pair string, volume float64) (string, e
     vals.Set("type", "sell")
     vals.Set("ordertype", "market")
     vals.Set("volume", fmt.Sprintf("%.8f", volume))
-    res, err := te.krakenPrivate("/0/private/AddOrder", vals)
+    res, err := te.krakenPrivateWithRetry("/0/private/AddOrder", vals)
     if err != nil { return "", err }
     if result, ok := res["result"].(map[string]interface{}); ok {
         if txids, ok := result["txid"].([]interface{}); ok && len(txids) > 0 {
@@ -286,6 +344,28 @@ func (te *TradingEngine) GenerateStrike() (*MacroStrike, error) {
 	// Generate strike type
 	strikeType := StrikeType(int(strikeID) % 6)
 	strikeTypeName := te.getStrikeTypeName(strikeType)
+
+	// Simulation mode: bypass Julia, generate high-confidence strikes
+	if os.Getenv("SIM_MODE") == "1" {
+		basePrice := basePrices[symbolID]
+		expectedReturn := te.getExpectedReturn(strikeType)
+		conf := 0.80 + rand.Float64()*0.15 // 0.80 - 0.95
+		return &MacroStrike{
+			ID:                strikeID,
+			Symbol:            symbol,
+			StrikeType:        strikeType,
+			EntryPrice:        basePrice,
+			TargetPrice:       basePrice * (1.0 + expectedReturn),
+			StopLoss:          basePrice * 0.98,
+			Confidence:        conf,
+			ExpectedReturn:    expectedReturn,
+			MaxExposureTimeMs: MaxExposureTimeMs,
+			StrikeForce:       0.0,
+			Timestamp:         time.Now().Unix(),
+			Status:            Targeting,
+			Leverage:          1,
+		}, nil
+	}
 
 	// Get market analysis from Julia
 	analysis, err := te.GetMarketAnalysis(symbol, strikeTypeName)
@@ -334,10 +414,24 @@ func (te *TradingEngine) ExecuteStrike(strike *MacroStrike) (float64, error) {
 	currentCapital := float64(atomic.LoadInt64(&te.Capital)) / 100.0
 	strikeSize := currentCapital * StrikeForce * strike.Confidence
 
-	// Apply impact multiplier for momentum/volatility
+	// Enforce leverage policy 3x-5x in PnL model
+	intendedLeverage := float64(MinLeverage)
 	if strike.StrikeType == MacroMomentum || strike.StrikeType == MacroVolatility {
-		strikeSize *= ImpactMultiplier
-		strike.Leverage = uint32(ImpactMultiplier)
+		intendedLeverage = float64(MaxLeverage)
+	}
+	strike.Leverage = uint32(intendedLeverage)
+	strikeSize *= intendedLeverage
+
+	// In simulation, cap position by risk percent of equity
+	if os.Getenv("SIM_MODE") == "1" && te.OrderRiskPct > 0 {
+		// risk per trade in USD
+		riskUSD := currentCapital * te.OrderRiskPct
+		// size so that loss at stop equals riskUSD
+		stopPct := SimStopLossPct
+		maxSizeByRisk := riskUSD / (stopPct * intendedLeverage)
+		if maxSizeByRisk < strikeSize {
+			strikeSize = maxSizeByRisk
+		}
 	}
 
 	strike.StrikeForce = strikeSize
@@ -420,6 +514,12 @@ func (te *TradingEngine) ExecuteStrike(strike *MacroStrike) (float64, error) {
 		atomic.AddInt64(&te.Capital, pnlCents)
 		atomic.AddInt64(&te.TotalPnL, pnlCents)
 		atomic.AddInt64(&te.TotalStrikes, 1)
+		// Update peak capital in live mode
+		currentCapitalInt := atomic.LoadInt64(&te.Capital)
+		peakCapital := atomic.LoadInt64(&te.PeakCapital)
+		if currentCapitalInt > peakCapital {
+			atomic.StoreInt64(&te.PeakCapital, currentCapitalInt)
+		}
 		if pnl >= 0 {
 			atomic.AddInt64(&te.SuccessfulStrikes, 1)
 			atomic.StoreInt64(&te.ConsecutiveMisses, 0)
@@ -435,26 +535,30 @@ func (te *TradingEngine) ExecuteStrike(strike *MacroStrike) (float64, error) {
 	}
 
 	// Simulated backtest mode retained for offline runs
-	priceMovement := (rand.Float64() - 0.5) * 0.04 // ±2% movement
+	priceMovement := (rand.Float64() - 0.5) * 0.04 // ±2% movement (noise only)
 	finalPrice := strike.EntryPrice * (1.0 + priceMovement)
 
-	// Determine hit/miss based on confidence and market analysis
+	// Determine hit/miss based on confidence
 	hitProbability := strike.Confidence
 	isHit := rand.Float64() < hitProbability
 
-	// Calculate PnL based on hit/miss outcome, not price movement
+	// Calculate PnL with TP/SL and fees
 	var pnl float64
-	
+	fees := strikeSize * RoundTripFeePct
 	if isHit {
-		// Hit: guaranteed profit based on expected return
-		expectedProfit := strike.ExpectedReturn * strikeSize * float64(strike.Leverage)
-		// Add some randomness but keep it positive
-		randomFactor := 0.5 + rand.Float64() // 0.5 to 1.5 multiplier
-		pnl = expectedProfit * randomFactor
+		// Use realistic TP in SIM_MODE, else strategy expectedReturn
+		tp := strike.ExpectedReturn
+		if os.Getenv("SIM_MODE") == "1" { tp = SimTakeProfitPct }
+		gross := strikeSize * tp * float64(strike.Leverage)
+		pnl = gross - fees
+		if finalPrice > strike.EntryPrice {
+			pnl += strikeSize * 0.0002 * float64(strike.Leverage) // tiny bonus
+		}
 	} else {
-		// Miss: guaranteed loss (stop loss scenario)
-		lossPercent := 0.005 + rand.Float64()*0.01 // 0.5% to 1.5% loss
-		pnl = -strikeSize * lossPercent * float64(strike.Leverage)
+		// Use realistic SL in SIM_MODE
+		sl := SimStopLossPct
+		grossLoss := strikeSize * sl * float64(strike.Leverage)
+		pnl = -grossLoss - fees
 	}
 
 	// Update metrics
@@ -501,6 +605,14 @@ func (te *TradingEngine) CheckEmergencyStops() bool {
 		log.Printf("🚨 EMERGENCY STOP: Capital dropped 15%% from peak")
 		return true
 	}
+	// Configurable max drawdown
+	if te.MaxDrawdownPct > 0 {
+		threshold := int64(float64(peakCapital) * (1.0 - te.MaxDrawdownPct/100.0))
+		if currentCapital < threshold {
+			log.Printf("🚨 EMERGENCY STOP: Configured drawdown hit: %.2f%%", te.MaxDrawdownPct)
+			return true
+		}
+	}
 
 	// Check consecutive misses
 	if consecutiveMisses >= te.MaxConsecutiveMisses {
@@ -514,13 +626,25 @@ func (te *TradingEngine) CheckEmergencyStops() bool {
 // ExecuteCampaign runs the full trading campaign
 func (te *TradingEngine) ExecuteCampaign() error {
 	log.Printf("🎯 MACRO STRIKE CAMPAIGN INITIATED - %d TRADES", TotalTrades)
-	log.Printf("Target: $%.2f in 30 days", float64(te.TargetCapital)/100.0)
+	log.Printf("Target: $%.2f in 5 days", float64(te.TargetCapital)/100.0)
 	log.Printf("Total Trades: %d", TotalTrades)
 	log.Printf("Strike Force: %.1f%% per strike", StrikeForce*100.0)
 
 	startTime := time.Now()
+	isSim := os.Getenv("SIM_MODE") == "1"
 
 	for atomic.LoadInt64(&te.TradesCompleted) < TotalTrades {
+		// Campaign stop: time window (skip in simulation)
+		if !isSim && time.Since(te.CampaignStart) > time.Duration(te.CampaignDays)*24*time.Hour {
+			log.Printf("⏱️ Campaign window ended: %d days", te.CampaignDays)
+			break
+		}
+		// Campaign stop: target capital reached (skip in simulation)
+		if !isSim && atomic.LoadInt64(&te.Capital) >= te.TargetCapital {
+			log.Printf("🎉 Target capital reached: $%.2f", float64(te.TargetCapital)/100.0)
+			break
+		}
+
 		// Generate and execute strike (skip low-quality setups quietly)
 		strike, err := te.GenerateStrike()
 		if err != nil {
