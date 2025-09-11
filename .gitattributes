@@ -1,0 +1,20 @@
+# GitHub Linguist overrides
+
+# Generated artifacts
+reports/** linguist-generated=true
+data/** linguist-generated=true
+*.log linguist-generated=true
+*.csv linguist-generated=true
+*.html linguist-generated=true
+
+# Documentation
+docs/** linguist-documentation
+README.md linguist-documentation
+
+# De-emphasize Go engine (temporary)
+*.go linguist-vendored=true
+
+# Ensure Rust & Julia are detected
+src/** linguist-detectable=true
+*.rs linguist-detectable=true
+*.jl linguist-detectable=true
