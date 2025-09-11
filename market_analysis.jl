@@ -446,7 +446,7 @@ function get_strike_recommendation(symbol::String, strike_type::String)::Dict
         "momentum" => analysis.momentum,
         "liquidity" => analysis.liquidity,
         "precision_score" => analysis.precision_score,
-        "recommendation" => adjusted_confidence > 0.85 ? "EXECUTE" : "WAIT",
+        "recommendation" => adjusted_confidence >= 0.90 ? "EXECUTE" : "WAIT",  # 90% minimum for execution
         "timestamp" => analysis.timestamp
     )
 end

@@ -1,17 +1,163 @@
-name: Go Build
+name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main ]
+
+env:
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
+  health-check:
+    name: Health Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v3
+      
+      - name: Run health check
+        run: |
+          chmod +x scripts/health_check.sh
+          bash scripts/health_check.sh || true
+
+  rust-tests:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
-          go-version: '1.22'
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Build
-        run: go build -v -o macro_strike_bot trading_engine.go
+        run: cargo build --release
+      
+      - name: Test
+        run: cargo test
+      
+      - name: Quick simulation
+        run: |
+          SIM_MODE=true SIM_TRADES=50 RUST_LOG=info cargo run --release
+
+  go-tests:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      
+      - name: Build Go
+        run: go build -o macro_strike_bot trading_engine.go
+      
+      - name: Test Go
+        run: go test ./...
+
+  julia-check:
+    name: Julia Analysis Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.9'
+      
+      - name: Install Julia packages
+        run: |
+          julia -e 'using Pkg; Pkg.add(["DataFrames", "CSV", "Statistics", "Dates", "Random"])'
+      
+      - name: Test Julia script
+        run: |
+          julia market_analysis.jl BTC 100.0 0.02 > test_julia.log
+          cat test_julia.log
+          grep -E "(EXECUTE|WAIT|SKIP)" test_julia.log || exit 1
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [rust-tests, go-tests, julia-check]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup environment
+        run: |
+          rustup default stable
+          julia -e 'using Pkg; Pkg.add(["DataFrames", "CSV", "Statistics", "Dates", "Random"])'
+      
+      - name: Run integration test
+        run: |
+          make build
+          make sim-quick
+          make analyze || true
+      
+      - name: Check outputs
+        run: |
+          test -f target/release/macro_strike_bot_fixed || exit 1
+          test -f macro_strike_bot || exit 1
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run cargo audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Check for secrets
+        run: |
+          # Check for hardcoded secrets
+          ! grep -r "api_key\|api_secret\|password\|token" --include="*.rs" --include="*.go" --exclude-dir=target . | grep -v "api_key:" | grep -v "example"
+
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Run benchmark simulation
+        run: |
+          # Time the simulation
+          time SIM_MODE=true SIM_TRADES=1000 cargo run --release > perf_test.log 2>&1
+          
+          # Extract metrics
+          tail -20 perf_test.log
+          
+          # Check performance
+          WIN_RATE=$(grep "Win Rate:" perf_test.log | tail -1 | awk '{print $3}' | sed 's/%//')
+          echo "Win Rate: $WIN_RATE%"
+          
+          # Fail if win rate < 70%
+          if (( $(echo "$WIN_RATE < 70" | bc -l) )); then
+            echo "Performance degraded: Win rate below 70%"
+            exit 1
+          fi

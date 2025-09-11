@@ -4,3 +4,7 @@ macro_strike_bot
 .DS_Store
 
 reports/*.html
+macro-strike-bot.tar.gz
+macro-strike-bot.bundle
+*.tar.gz
+*.bundle
