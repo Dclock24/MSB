@@ -1,0 +1,410 @@
+# High-Performance Trading System Directory Structure
+# Optimized for hot-path performance and clear service boundaries
+
+project_root:
+  # Workspace definitions
+  - Cargo.toml          # Rust workspace root listing all members
+  - Project.toml        # Julia package manifest
+  - Manifest.toml       # Julia dependency lock
+  - README.md
+
+  # Documentation
+  - docs/:
+      - architecture/
+      - api/
+      - operations/
+      - performance/
+
+  # Configuration management
+  - configs/:
+      - base/:
+          - nats/:
+              - subjects.toml           # Subject naming conventions
+              - jetstream/:
+                  - streams.yaml        # Stream definitions
+          - clickhouse/:
+              - schema.sql              # Tick storage DDL
+          - postgres/:
+              - schema.sql              # Reference data DDL
+          - risk/:
+              - limits.yaml             # Position/drawdown limits (NOT rate limits)
+          - execution/:
+              - precision.yaml          # Tick/lot sizes per venue
+          - venues/:
+              - spec.yaml               # VenueSpec with has_private_ws, venue_policy, precision, fees
+      - prod/:                          # Production overrides
+      - staging/:                       # Staging overrides
+      - dev/:                           # Development overrides
+
+  # Message schemas (single source of truth)
+  - schemas/:
+      - proto/:                         # Protobuf for control plane/audit
+          - common.proto
+          - orders.proto
+          - risk.proto
+          - audit.proto
+      - capnp/:                         # Cap'n Proto for hot-path
+          - market_data.capnp
+          - signals.capnp
+          - acks.capnp
+      - fbs/:                           # FlatBuffers (alternative)
+          - tick.fbs
+      - codegen/:
+          - rust/:                      # Generated Rust bindings
+          - julia/:                     # Generated Julia bindings
+          - tools/:
+              - build.rs
+              - generate.sh
+
+  # Shared libraries (hot-path optimized)
+  - shared/:
+      - core-bus/:                      # NATS abstractions
+          - src/:
+              - subjects.rs             # Subject routing
+              - request_reply.rs        # Timeout handling
+              - headers.rs              # Correlation IDs
+          - Cargo.toml
+
+      - core-shmem/:                    # Lock-free shared memory
+          - src/:
+              - ring.rs                 # MPSC ring buffer
+              - cacheline.rs            # Alignment helpers
+              - tick_entry.rs           # SoA layout
+          - Cargo.toml
+
+      - core-actors/:                   # Actor runtime
+          - src/:
+              - actor.rs                # Single-threaded loop
+              - mailbox.rs              # Bounded queue
+              - router.rs               # Consistent hash sharding
+          - Cargo.toml
+
+      - core-serde/:                    # Zero-copy serialization
+          - src/:
+              - capnp_pool.rs           # Buffer pooling
+              - zero_copy.rs            # Direct access
+          - Cargo.toml
+
+      - core-precision/:                # Venue constraints
+          - src/:
+              - guards.rs               # Tick/lot validation
+              - cache.rs                # L1-fit precision cache
+          - Cargo.toml
+
+      - core-risk-guard/:               # Local risk checks
+          - src/:
+              - local_guard.rs          # In-process mirror
+              - refresh.rs              # Cache updates
+          - Cargo.toml
+
+      - core-wal/:                      # Write-ahead log
+          - src/:
+              - mmap_wal.rs             # O_DIRECT writes
+              - recovery.rs             # Restart handling
+          - Cargo.toml
+
+      - core-metrics/:                  # Observability
+          - src/:
+              - micro_budgets.rs        # Latency tracking
+              - prometheus.rs           # Metric export
+          - Cargo.toml
+
+      - core-time/:                     # High-res timestamps
+          - src/:
+              - tsc_clock.rs            # TSC calibration
+              - monotonic.rs            # CLOCK_MONOTONIC_RAW
+          - Cargo.toml
+
+      - core-types/:                    # Domain types
+          - src/:
+              - ids.rs                  # Type-safe IDs
+              - enums.rs                # Venues, order types
+              - errors.rs               # Error taxonomy
+          - Cargo.toml
+
+  # Core services
+  - services/:
+      # Market data ingestion
+      - ingestion/:
+          - src/:
+              - main.rs                 # Entry point
+              - actors/:                # Per-symbol actors
+                  - symbol_actor.rs
+                  - quality_check.rs
+                  - gap_detector.rs
+              - writers/:
+                  - shmem_writer.rs
+                  - nats_publisher.rs
+                  - clickhouse_batch.rs
+          - Cargo.toml
+          - Dockerfile
+          - Makefile
+
+      # Order execution
+      - execution/:
+          - src/:
+              - main.rs
+              - actors/:
+                  - signal_consumer.rs
+                  - order_builder.rs
+                  - risk_checker.rs
+              - venues/:                # Venue routing
+                  - router.rs
+                  - nonce_manager.rs
+              - groups/:                # Order group handling
+                  - order_group.rs
+                  - coordinator.rs
+              - optimizations/:
+                  - hmac_cache.rs
+                  - tls_pool.rs
+          - Cargo.toml
+          - Dockerfile
+          - Makefile
+
+      # Analytics engine
+      - analytics/:
+          # Julia package
+          - MacroStrikeAnalytics.jl/:
+              - Project.toml
+              - src/:
+                  - MacroStrikeAnalytics.jl
+                  - features/:
+                      - vpin.jl
+                      - microstructure.jl
+                      - ou_process.jl
+                  - signals/:
+                      - momentum.jl
+                      - mean_reversion.jl
+                  - utils/:
+                      - ring_buffer.jl
+                      - zero_alloc.jl
+              - test/:
+              - precompile.jl           # Sysimage generation
+
+          # Rust-Julia bridge (optional)
+          - bridge/:
+              - src/:
+                  - lib.rs
+                  - julia_embed.rs      # libjulia FFI
+                  - shmem_reader.rs     # Ring consumer
+              - build.rs                # Julia linking
+              - Cargo.toml
+
+      # Exchange adapters (venue-specific, rate limits enforced here)
+      - adapters/:
+          - kraken/:
+              - public-ws/:
+                  - src/
+                  - Cargo.toml
+              - private-ws/:                   # Required for production venues
+                  - src/
+                  - Cargo.toml
+              - rest-bootstrap/:
+                  - src/
+                  - Cargo.toml
+          - binance/:
+              - # Similar structure
+          - okx/:
+              - # Similar structure
+
+      # Support services (9 core)
+      - support/:
+          - risk-gateway/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - position-pnl/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - venue-registry/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - reference-data/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - config-service/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - circuit-breaker/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - clock-service/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - audit-service/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+          - health-admin/:
+              - src/
+              - Cargo.toml
+              - Dockerfile
+
+  # Persistence layer
+  - persistence/:
+      - clickhouse/:
+          - migrations/:
+              - 001_ticks_table.sql
+              - 002_materialized_views.sql
+          - mv/:                        # Materialized view definitions
+              - ticks_1m.sql
+              - ticks_1h.sql
+          - loaders/:
+              - batch_loader.rs
+      - postgres/:
+          - migrations/:
+              - 001_symbols.sql
+              - 002_venues.sql
+              - 003_configs.sql
+      - jetstream/:
+          - admin/:
+              - create_streams.sh
+              - backup_restore.sh
+
+  # Message bus configuration
+  - bus/:
+      - nats/:
+          - subjects.md                 # MUST document sig.{strategy_id}.{symbol}, ord.ack.{venue} with mandatory headers
+          - jetstream/:
+              - streams.yaml
+              - consumers/:
+                  - audit_consumer.yaml
+
+  # Testing infrastructure
+  - tests/:
+      - conformance/:
+          - adapter_tests/
+          - precision_tests/
+          - risk_guard_tests/
+      - latency/:
+          - tick_to_signal/
+          - signal_to_order/
+          - micro_budget_tests/
+      - replay/:
+          - deterministic_replay/
+          - seed_validation/
+      - chaos/:
+          - partition_tests/
+          - slow_consumer_tests/
+          - order_recovery_tests/
+
+  # Performance benchmarks
+  - benchmarks/:
+      - shmem/:
+          - ring_throughput.rs
+          - actor_scaling.rs
+      - serde/:
+          - capnp_bench.rs
+          - fbs_bench.rs
+          - proto_bench.rs
+      - execution/:
+          - end_to_end.rs
+          - risk_guard_bench.rs
+
+  # Operational tools
+  - tools/:
+      - cli/:
+          - drain/                      # Graceful draining
+          - pause/                      # Trading pause
+          - reconcile/                  # Position reconciliation
+      - loadgen/:
+          - market_data_sim/
+          - order_flow_sim/
+
+  # Deployment and operations
+  - ops/:
+      - docker/:
+          - base/:
+              - rust.dockerfile
+              - julia.dockerfile
+          - compose/:
+              - dev.yaml
+              - test.yaml
+      - k8s/:
+          - base/:
+              - namespaces.yaml
+              - configmaps/
+              - services/
+              - deployments/
+          - overlays/:
+              - prod/
+              - staging/
+              - dev/
+      - helm/:
+          - charts/
+              - macro-strike/
+      - terraform/:
+          - modules/
+          - environments/
+
+  # Development scripts
+  - scripts/:
+      - dev.sh                          # Local development
+      - codegen.sh                      # Schema generation
+      - run_local.sh                    # Full stack local
+      - replay.sh                       # Replay testing
+      - build_sysimage.jl               # Julia precompile
+
+  # CI/CD configuration (optional but recommended)
+  - ci/:
+      - codegen_check.yaml              # Ensure generated code is fresh
+      - latency_gates.yaml              # Performance regression tests
+      - conformance_tests.yaml          # Adapter compliance checks
+
+# Design principles encoded in structure:
+design_principles:
+  - hot_path_isolation: "Shared libraries contain all performance-critical code"
+  - service_boundaries: "Each service is independently deployable"
+  - schema_first: "All messages defined in schemas/ before use"
+  - venue_agnostic: "Core services know nothing about specific venues"
+  - test_everything: "Every optimization has a benchmark"
+  - observable_by_default: "Metrics and micro-budgets built in"
+
+# Build order:
+build_order:
+  1: "schemas/codegen"
+  2: "shared/*"
+  3: "services/adapters/*"
+  4: "services/{ingestion,execution,analytics}"
+  5: "services/support/*"
+  6: "tools/*"
+
+# Hot path data flow:
+hot_path_flow:
+  1: "Adapter → Ingestion Actor → Shared Memory Ring"
+  2: "Ring → Analytics Actor → Signal Ring"
+  3: "Signal Ring → Execution Actor → Local Risk → Venue"
+  4: "Venue Ack → Position Update → Risk Refresh"
+
+# Critical configuration files:
+venue_spec_format:
+  location: "configs/base/venues/spec.yaml"
+  required_fields:
+    - venue: "string (e.g., 'kraken', 'binance')"
+    - has_private_ws: "bool (MUST be true for production)"
+    - venue_policy: "enum ['production', 'shadow_only']"
+    - rate_limits: "orders_per_second, requests_per_minute"
+    - symbols:
+        description: "array of symbol specs with:"
+        fields:
+          - min_tick: "price precision"
+          - min_lot: "minimum order size"
+          - lot_step: "size increment"
+          - price_band_pct: "max deviation from mid"
+          - maker_fee: "percentage"
+          - taker_fee: "percentage"
+
+nats_subjects_format:
+  location: "bus/nats/subjects.md"
+  required_subjects:
+    - "sig.{strategy_id}.{symbol}": "Trading signals with TTL/slippage constraints"
+    - "ord.ack.{venue}": "Order acknowledgments with mandatory correlation_id header"
+    - "md.norm.{venue}.{symbol_canon}": "Per-venue normalized market data"
+    - "md.agg.{symbol_canon}": "Cross-venue aggregated data"
+    - "ord.req.{venue}": "Order requests (request-reply with WAL backing)"
