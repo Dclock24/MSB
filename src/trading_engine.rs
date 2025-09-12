@@ -10,6 +10,7 @@ use crate::api::{
 };
 use crate::monitoring::{MonitoringSystem, MetricType};
 use crate::{MacroStrike, StrikeStatus, StrikeType, MIN_WIN_PROBABILITY};
+use crate::opportunity_scanner::OpportunityScanner;
 use crate::strike_optimizer::{StrikeOptimizer, OptimizerConfig, StrikeAnalysis, EdgeCalculation, RiskMetrics};
 use std::sync::Arc;
 use tokio::sync::RwLock;

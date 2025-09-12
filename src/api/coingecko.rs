@@ -25,7 +25,7 @@ impl CoinGeckoClient {
             client: Client::builder()
                 .timeout(Duration::from_secs(10))
                 .build()
-                .unwrap(),
+                .expect("Failed to build HTTP client"),
             config,
             base_url,
         }

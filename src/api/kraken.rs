@@ -48,7 +48,8 @@ impl KrakenClient {
         let sha256_hash = Sha256::digest(format!("{}{}", nonce, post_data).as_bytes());
         let hmac_data = [path.as_bytes(), &sha256_hash[..]].concat();
 
-        let mut mac = HmacSha512::new_from_slice(&secret_decoded).unwrap();
+        let mut mac = HmacSha512::new_from_slice(&secret_decoded)
+            .map_err(|e| format!("Invalid API secret: {}", e))?;
         mac.update(&hmac_data);
 
         base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes())
@@ -80,7 +81,9 @@ impl KrakenClient {
             .duration_since(UNIX_EPOCH)?
             .as_millis() as u64;
 
-        let mut post_params = params.as_object().unwrap().clone();
+        let mut post_params = params.as_object()
+            .ok_or("Invalid parameters format")?
+            .clone();
         post_params.insert("nonce".to_string(), json!(nonce));
 
         let post_data = serde_urlencoded::to_string(&post_params)?;
