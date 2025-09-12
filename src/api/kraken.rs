@@ -40,10 +40,10 @@ impl KrakenClient {
     }
 
     /// Generate Kraken API signature
-    fn generate_signature(&self, path: &str, nonce: u64, post_data: &str) -> String {
+    fn generate_signature(&self, path: &str, nonce: u64, post_data: &str) -> Result<String, Box<dyn std::error::Error>> {
         let secret_decoded = base64::engine::general_purpose::STANDARD
             .decode(&self.config.api_secret)
-            .unwrap();
+            .map_err(|e| format!("Invalid base64 API secret: {}", e))?;
 
         let sha256_hash = Sha256::digest(format!("{}{}", nonce, post_data).as_bytes());
         let hmac_data = [path.as_bytes(), &sha256_hash[..]].concat();
@@ -52,7 +52,7 @@ impl KrakenClient {
             .map_err(|e| format!("Invalid API secret: {}", e))?;
         mac.update(&hmac_data);
 
-        base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes())
+        Ok(base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
     }
 
     /// Convert internal symbol to Kraken format
@@ -88,7 +88,7 @@ impl KrakenClient {
 
         let post_data = serde_urlencoded::to_string(&post_params)?;
         let path = format!("/0/private/{}", endpoint);
-        let signature = self.generate_signature(&path, nonce, &post_data);
+        let signature = self.generate_signature(&path, nonce, &post_data)?;
 
         let response = self
             .client
