@@ -3,6 +3,14 @@ name = "macro_strike_bot_fixed"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "trading_engine"
+path = "src/bin/trading_engine.rs"
+
+[lib]
+name = "macro_strike_bot_fixed"
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -17,6 +25,7 @@ sha2 = "0.10"
 serde_urlencoded = "0.7"
 async-trait = "0.1"
 chrono = "0.4"
+ctrlc = "3.4"
 
 # Optional EIP integration dependencies
 ethers = { version = "2.0", features = ["ws", "rustls"], optional = true }
