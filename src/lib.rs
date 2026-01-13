@@ -6,7 +6,6 @@ pub mod monitoring;
 pub mod strike_optimizer;
 pub mod trading_engine;
 pub mod opportunity_scanner;
-pub mod strike_validator;
 pub mod superior_strike_validator;
 pub mod elite_strategies;
 pub mod quantum_strategies;
@@ -14,12 +13,25 @@ pub mod revolutionary_strategies;
 pub mod ultra_fast_cascade;
 pub mod advanced_cascade_theory;
 pub mod stochastic_volatility_models;
+pub mod production_test_suite;
+pub mod production_monitor;
+pub mod proprietary_predictive_engine;
+pub mod quant_strike_system;
+pub mod proprietary_backtest;
+pub mod elite_quant_framework;
+pub mod elite_800k_optimizer;
+pub mod hummingbot_array_system;
+pub mod amm_predictive_arbitrage;
+pub mod errors;
+pub mod volume_oscillator_fixed;
+pub mod consensus_layer_integration;
+pub mod trade_test_harness;
+pub mod diamond_integration;
 
 #[cfg(feature = "eip")]
 pub mod eip;
 
 // Re-export key types and constants
-pub use crate::opportunity_scanner::Opportunity;
 pub use crate::trading_engine::{TradingEngine, EngineConfig, Position};
 
 // Constants

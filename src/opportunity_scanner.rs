@@ -6,7 +6,7 @@ use crate::api::{
     liquidity_predictor::{LiquidityPredictor, LiquidityPrediction},
     MarketDataProvider,
 };
-use crate::{StrikeType, SYMBOLS};
+use crate::StrikeType;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;

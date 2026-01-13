@@ -79,7 +79,7 @@ pub struct RevolutionaryEngine {
     microstructure_monitor: Arc<RwLock<MicrostructureMonitor>>,
     cross_chain_scanner: Arc<RwLock<CrossChainScanner>>,
     volatility_analyzer: Arc<RwLock<VolatilityAnalyzer>>,
-    liquidity_predictor: Arc<RwLock<LiquidityPredictor>>,
+    liquidity_vacuum_detector: Arc<RwLock<LiquidityVacuumDetector>>,
     
     // Strategy state
     active_cascades: Arc<RwLock<HashMap<String, SentimentCascade>>>,
@@ -114,7 +114,7 @@ pub struct VolatilityAnalyzer {
     vol_regime_detector: VolRegimeDetector,
 }
 
-pub struct LiquidityPredictor {
+pub struct LiquidityVacuumDetector {
     depth_history: HashMap<String, VecDeque<(DateTime<Utc>, f64)>>,
     market_maker_tracker: MarketMakerTracker,
     vacuum_model: VacuumPredictionModel,
@@ -197,7 +197,7 @@ impl RevolutionaryEngine {
                     regime_change_probability: 0.0,
                 },
             })),
-            liquidity_predictor: Arc::new(RwLock::new(LiquidityPredictor {
+            liquidity_vacuum_detector: Arc::new(RwLock::new(LiquidityVacuumDetector {
                 depth_history: HashMap::new(),
                 market_maker_tracker: MarketMakerTracker {
                     identified_makers: HashMap::new(),

@@ -62,7 +62,7 @@ pub struct EliteStrategyEngine {
     correlation_matrix: Arc<RwLock<HashMap<(String, String), f64>>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum StrategyType {
     StatisticalArbitrage,
     MarketMaking,

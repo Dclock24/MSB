@@ -25,10 +25,10 @@ pub struct QuantumCascadeField {
     path_integral: Arc<RwLock<PathIntegralCalculator>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RenormalizationGroup {
     // Beta functions for coupling constants
-    beta_functions: HashMap<String, Box<dyn Fn(f64) -> f64>>,
+    beta_functions: HashMap<String, f64>,
     
     // Fixed points in parameter space
     fixed_points: Vec<ParameterPoint>,

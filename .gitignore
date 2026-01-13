@@ -9,3 +9,31 @@ macro-strike-bot.bundle
 *.tar.gz
 *.bundle
 macro_strike_bot
+
+# Environment & secrets (CRITICAL - DO NOT COMMIT)
+.env
+.env.local
+.env.production
+.env.rust
+env.production
+env.production.250k
+*.key
+*.pem
+secrets/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Test results (optional)
+test_results_*.json
+
+# Temporary files
+*.tmp
+*.bak

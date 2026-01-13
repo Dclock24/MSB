@@ -1,0 +1,256 @@
+# Elite Quant Framework Configuration
+# Optimized for $800,000 Capital Entry
+
+capital:
+  initial: 800000
+  reserve: 80000  # 10% cash reserve
+  deployable: 720000
+  
+position_sizing:
+  # Maximum position sizes based on capital
+  max_single_position: 160000  # 20% of total capital
+  max_correlated_exposure: 320000  # 40% in correlated assets
+  min_position_size: 8000  # 1% minimum
+  
+  # Strategy-specific allocations
+  allocations:
+    pure_quant:
+      renaissance_medallion: 80000
+      two_sigma_ml: 80000
+      citadel_mm: 60000
+      jump_hft: 60000
+      jane_street_etf: 60000
+      de_shaw: 40000
+      hudson_river: 40000
+      virtu: 40000
+      tower_research: 40000
+      xtx_markets: 40000
+    
+    macro_quant:
+      bridgewater: 60000
+      aqr_factors: 60000
+      man_group_cta: 40000
+      winton: 30000
+      systematica: 30000
+      brevan_howard: 20000
+      graham_capital: 20000
+      aspect: 20000
+      transtrend: 20000
+      campbell: 20000
+    
+    hybrid_multi:
+      millennium_pods: 80000
+      point72_cubist: 60000
+      balyasny: 40000
+      exoduspoint: 40000
+      schonfeld: 40000
+
+leverage_limits:
+  # Asset-specific leverage with $800K base
+  crypto:
+    max_leverage: 10
+    optimal_range: [3, 7]
+    max_exposure: 2400000  # 3x total capital at max leverage
+  
+  forex:
+    max_leverage: 5
+    optimal_range: [2, 4]
+    max_exposure: 1600000  # 2x total capital
+  
+  equities:
+    max_leverage: 2
+    optimal_range: [1, 1.5]
+    max_exposure: 1200000  # 1.5x total capital
+  
+  futures:
+    max_leverage: 8
+    optimal_range: [2, 5]
+    max_exposure: 2000000  # 2.5x total capital
+  
+  options:
+    max_leverage: 3
+    optimal_range: [1, 2]
+    max_exposure: 800000  # 1x total capital
+
+risk_management:
+  # Daily risk limits
+  daily_var_limit: 16000  # 2% of $800K
+  daily_stop_loss: 24000  # 3% hard stop
+  
+  # Weekly/Monthly limits
+  weekly_drawdown_limit: 40000  # 5%
+  monthly_drawdown_limit: 120000  # 15%
+  
+  # Position-level stops
+  position_stop_loss: 0.02  # 2% of position size
+  position_trailing_stop: 0.015  # 1.5% trailing
+  time_stop_hours: 48
+  
+  # Correlation limits
+  max_correlation: 0.3
+  max_sector_exposure: 200000  # 25% of capital
+  max_geographic_exposure: 320000  # 40% of capital
+
+volume_oscillator:
+  # Strike zones calibrated for $800K
+  entry_thresholds:
+    strong_long:
+      oscillator: -2.0
+      velocity: 0.5
+      volume_ratio: 1.2
+      min_position: 16000  # 2% for strong signals
+      max_position: 80000  # 10% for strong signals
+    
+    long:
+      oscillator: -1.5
+      velocity: 0.3
+      volume_ratio: 1.0
+      min_position: 8000  # 1%
+      max_position: 40000  # 5%
+    
+    strong_short:
+      oscillator: 2.0
+      velocity: -0.5
+      volume_ratio: 1.2
+      min_position: 16000
+      max_position: 80000
+    
+    short:
+      oscillator: 1.5
+      velocity: -0.3
+      volume_ratio: 1.0
+      min_position: 8000
+      max_position: 40000
+
+execution:
+  # Order size tiers for $800K capital
+  order_tiers:
+    small: 
+      max: 10000
+      algo: market
+      urgency: immediate
+    
+    medium:
+      max: 50000
+      algo: iceberg
+      urgency: 1_minute
+      slice_size: 5000
+    
+    large:
+      max: 100000
+      algo: twap
+      urgency: 5_minutes
+      slices: 20
+    
+    xlarge:
+      max: 200000
+      algo: vwap
+      urgency: 15_minutes
+      participation_rate: 0.1
+
+performance_targets:
+  # Targets scaled for $800K
+  daily_profit_target: 3200  # 0.4% daily = ~146% annually
+  weekly_profit_target: 16000  # 2% weekly
+  monthly_profit_target: 64000  # 8% monthly
+  annual_profit_target: 480000  # 60% return on $800K
+  
+  # Risk-adjusted metrics
+  sharpe_ratio_target: 2.5
+  sortino_ratio_target: 3.0
+  calmar_ratio_target: 4.0
+  win_rate_target: 0.65
+  profit_factor_target: 2.0
+
+kelly_optimization:
+  # Kelly fractions adjusted for $800K base
+  base_kelly_fraction: 0.25  # Conservative Kelly
+  max_kelly_fraction: 0.4  # Never exceed 40% on single trade
+  
+  # Position sizing with Kelly
+  position_sizes:
+    high_confidence:  # >70% win rate
+      fraction: 0.35
+      max_size: 280000  # 35% of capital
+    
+    medium_confidence:  # 60-70% win rate
+      fraction: 0.20
+      max_size: 160000  # 20% of capital
+    
+    low_confidence:  # 50-60% win rate
+      fraction: 0.10
+      max_size: 80000  # 10% of capital
+
+pod_structure:
+  # Millennium-style pod allocation for $800K
+  num_pods: 10
+  capital_per_pod: 80000
+  
+  pods:
+    - name: "Statistical_Arb"
+      allocation: 100000
+      strategies: ["pairs", "mean_reversion", "cointegration"]
+    
+    - name: "Market_Making"
+      allocation: 80000
+      strategies: ["quote_generation", "rebate_capture"]
+    
+    - name: "Momentum"
+      allocation: 80000
+      strategies: ["trend_following", "breakout"]
+    
+    - name: "Volatility"
+      allocation: 80000
+      strategies: ["vol_arb", "dispersion", "gamma_scalping"]
+    
+    - name: "Event_Driven"
+      allocation: 80000
+      strategies: ["earnings", "m&a", "index_rebalance"]
+    
+    - name: "Macro"
+      allocation: 80000
+      strategies: ["fx", "rates", "commodities"]
+    
+    - name: "Crypto"
+      allocation: 80000
+      strategies: ["defi_arb", "cex_dex", "funding_rates"]
+    
+    - name: "Options"
+      allocation: 60000
+      strategies: ["delta_neutral", "calendar_spreads"]
+    
+    - name: "Fixed_Income"
+      allocation: 60000
+      strategies: ["yield_curve", "credit_spreads"]
+    
+    - name: "Systematic"
+      allocation: 60000
+      strategies: ["factor_models", "ml_alpha"]
+
+scaling_plan:
+  # Growth milestones from $800K
+  milestones:
+    - capital: 800000
+      status: "current"
+      max_leverage: "conservative"
+      strategies: "all"
+    
+    - capital: 1000000
+      target_date: "1_month"
+      max_leverage: "moderate"
+      new_strategies: ["exotic_derivatives"]
+    
+    - capital: 1500000
+      target_date: "3_months"
+      max_leverage: "aggressive"
+      new_strategies: ["cross_asset_arb", "structured_products"]
+    
+    - capital: 2000000
+      target_date: "6_months"
+      max_leverage: "maximum"
+      new_strategies: ["prop_trading_desk", "prime_brokerage"]
+    
+    - capital: 5000000
+      target_date: "12_months"
+      max_leverage: "institutional"
+      new_strategies: ["fund_of_funds", "seeding_platform"]

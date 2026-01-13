@@ -24,6 +24,15 @@ pub struct MarketData {
     pub timestamp: SystemTime,
 }
 
+/// Ticker data for historical analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Ticker {
+    pub symbol: String,
+    pub price: f64,
+    pub volume: f64,
+    pub timestamp: SystemTime,
+}
+
 /// Order types for trading
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OrderType {
@@ -78,6 +87,23 @@ pub struct Balance {
     pub total: f64,
 }
 
+/// Order book entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderBookLevel {
+    pub price: f64,
+    pub volume: f64,
+    pub timestamp: Option<SystemTime>,
+}
+
+/// Order book
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderBook {
+    pub symbol: String,
+    pub bids: Vec<OrderBookLevel>,
+    pub asks: Vec<OrderBookLevel>,
+    pub timestamp: SystemTime,
+}
+
 /// Trait for market data providers
 #[async_trait::async_trait]
 pub trait MarketDataProvider: Send + Sync {
@@ -102,6 +128,9 @@ pub trait TradingExchange: Send + Sync {
     
     /// Get account balances
     async fn get_balances(&self) -> ApiResult<Vec<Balance>>;
+    
+    /// Get order book
+    async fn get_order_book(&self, symbol: &str, depth: usize) -> ApiResult<OrderBook>;
 }
 
 /// API configuration

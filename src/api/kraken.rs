@@ -240,6 +240,69 @@ impl TradingExchange for KrakenClient {
 
         Ok(balances)
     }
+    
+    async fn get_order_book(&self, symbol: &str, depth: usize) -> ApiResult<OrderBook> {
+        let params = json!({
+            "pair": Self::to_kraken_symbol(symbol),
+            "count": depth
+        });
+        
+        let endpoint = format!("{}/public/Depth", self.base_url);
+        let response = self.client
+            .get(&endpoint)
+            .json(&params)
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {}", e))?;
+        
+        if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            return Err("Rate limited".into());
+        }
+        
+        let result = response.json::<serde_json::Value>().await
+            .map_err(|e| format!("Failed to parse response: {}", e))?;
+        self.rate_limit().await;
+        
+        // Parse Kraken's order book format
+        let pair_data = result[Self::to_kraken_symbol(symbol)].clone();
+        
+        let mut bids = Vec::new();
+        let mut asks = Vec::new();
+        
+        // Parse bids
+        if let Some(bid_array) = pair_data["bids"].as_array() {
+            for bid in bid_array.iter().take(depth) {
+                if let Some(arr) = bid.as_array() {
+                    if arr.len() >= 2 {
+                        let price = arr[0].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                        let volume = arr[1].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                        bids.push(OrderBookLevel { price, volume });
+                    }
+                }
+            }
+        }
+        
+        // Parse asks
+        if let Some(ask_array) = pair_data["asks"].as_array() {
+            for ask in ask_array.iter().take(depth) {
+                if let Some(arr) = ask.as_array() {
+                    if arr.len() >= 2 {
+                        let price = arr[0].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                        let volume = arr[1].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                        asks.push(OrderBookLevel { price, volume });
+                    }
+                }
+            }
+        }
+        
+        Ok(OrderBook {
+            symbol: symbol.to_string(),
+            bids,
+            asks,
+            timestamp: chrono::Utc::now().timestamp_millis() as u64,
+        })
+    }
 }
 
 #[cfg(test)]

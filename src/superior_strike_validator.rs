@@ -6,9 +6,6 @@ use crate::api::{MarketDataProvider, TradingExchange};
 use crate::api::liquidity::LiquidityMonitor;
 use crate::api::liquidity_predictor::LiquidityPredictor;
 use crate::api::safety::SafetyMonitor;
-use crate::ultra_fast_cascade::UltraFastCascadeDetector;
-use crate::advanced_cascade_theory::AdvancedCascadeTheory;
-use crate::stochastic_volatility_models::StochasticVolatilityEngine;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, warn, error};
@@ -59,7 +56,7 @@ pub trait ValidationModule: Send + Sync {
 }
 
 /// Validation context passed to modules
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationContext {
     pub current_confidence: f64,
     pub cumulative_risk_score: f64,
@@ -179,7 +176,7 @@ impl ValidationModule for ProbabilisticConfidenceModule {
                     info_gain
                 ),
                 recommendations: if !passed {
-                    vec!["Increase base confidence", "Wait for better market conditions"]
+                    vec!["Increase base confidence".to_string(), "Wait for better market conditions".to_string()]
                 } else {
                     vec![]
                 },
@@ -211,6 +208,7 @@ impl ProbabilisticConfidenceModule {
             MarketRegime::LowVolatility => 0.90,
             MarketRegime::Ranging => 0.80,
             MarketRegime::Cascade => 0.95,
+            MarketRegime::Unknown => 0.70,
         }
     }
     
@@ -224,7 +222,7 @@ impl ProbabilisticConfidenceModule {
     }
     
     async fn monte_carlo_confidence_interval(&self, mean: f64, iterations: usize) -> ConfidenceInterval {
-        use rand::distributions::{Distribution, Beta};
+        use rand::distributions::Distribution;
         use rand::thread_rng;
         
         let alpha = mean * 100.0;
@@ -300,8 +298,8 @@ impl ValidationModule for DeepLearningRiskModule {
                 ),
                 recommendations: if !passed {
                     vec![
-                        "Reduce position size",
-                        "Tighten stop loss",
+                        "Reduce position size".to_string(),
+                        "Tighten stop loss".to_string(),
                         "Wait for lower volatility",
                     ]
                 } else {
@@ -443,8 +441,8 @@ impl ValidationModule for MicrostructureQualityModule {
                 ),
                 recommendations: if !passed {
                     vec![
-                        "Use limit orders",
-                        "Split order execution",
+                        "Use limit orders".to_string(),
+                        "Split order execution".to_string(),
                         "Wait for better liquidity",
                     ]
                 } else {
@@ -465,8 +463,8 @@ impl MicrostructureQualityModule {
     }
     
     fn calculate_depth_imbalance(&self, book: &OrderBook) -> f64 {
-        let bid_depth: f64 = book.bids.iter().take(10).map(|o| o.quantity).sum();
-        let ask_depth: f64 = book.asks.iter().take(10).map(|o| o.quantity).sum();
+        let bid_depth: f64 = book.bids.iter().take(10).map(|o| o.volume).sum();
+        let ask_depth: f64 = book.asks.iter().take(10).map(|o| o.volume).sum();
         
         if bid_depth + ask_depth > 0.0 {
             ((bid_depth - ask_depth) / (bid_depth + ask_depth)).abs()
@@ -478,7 +476,7 @@ impl MicrostructureQualityModule {
     fn estimate_price_impact(&self, book: &OrderBook, size: f64) -> f64 {
         // Square-root market impact model
         let total_depth: f64 = book.bids.iter().chain(book.asks.iter())
-            .map(|o| o.quantity)
+            .map(|o| o.volume)
             .sum();
         
         if total_depth > 0.0 {
@@ -490,12 +488,46 @@ impl MicrostructureQualityModule {
     
     fn calculate_flow_toxicity(&self, book: &OrderBook) -> f64 {
         // VPIN-inspired toxicity metric
-        0.2 // Placeholder
+        // Calculate volume imbalance and price impact
+        let total_bid_volume: f64 = book.bids.iter().map(|b| b.volume).sum();
+        let total_ask_volume: f64 = book.asks.iter().map(|a| a.volume).sum();
+        
+        let volume_imbalance = if total_bid_volume + total_ask_volume > 0.0 {
+            (total_bid_volume - total_ask_volume).abs() / (total_bid_volume + total_ask_volume)
+        } else {
+            0.0
+        };
+        
+        // Check for order book manipulation patterns
+        let large_orders = book.bids.iter().chain(book.asks.iter())
+            .filter(|o| o.volume > (total_bid_volume + total_ask_volume) * 0.1)
+            .count();
+        
+        let manipulation_factor = (large_orders as f64) / 20.0;
+        
+        // Toxicity increases with imbalance and manipulation
+        (volume_imbalance * 0.7 + manipulation_factor * 0.3).min(1.0)
     }
     
     fn calculate_market_resiliency(&self, book: &OrderBook) -> f64 {
-        // How quickly market recovers from trades
-        0.8 // Placeholder
+        // Check depth and spread recovery potential
+        let bid_depth = book.bids.iter().take(10).map(|b| b.volume).sum::<f64>();
+        let ask_depth = book.asks.iter().take(10).map(|a| a.volume).sum::<f64>();
+        
+        if bid_depth == 0.0 || ask_depth == 0.0 {
+            return 0.0;
+        }
+        
+        let depth_ratio = bid_depth.min(ask_depth) / bid_depth.max(ask_depth);
+        let spread = if let (Some(bid), Some(ask)) = (book.bids.first(), book.asks.first()) {
+            (ask.price - bid.price) / bid.price
+        } else {
+            0.01
+        };
+        
+        // Better depth ratio and tighter spreads = higher resiliency
+        let resiliency = depth_ratio * (1.0 - spread.min(0.01) * 100.0);
+        resiliency.max(0.0).min(1.0)
     }
     
     fn calculate_kyle_lambda(&self, book: &OrderBook) -> f64 {
@@ -597,9 +629,9 @@ impl ValidationModule for QuantumCascadeModule {
                     entanglement_entropy, phase_transition_prob * 100.0, universality_class
                 ),
                 recommendations: if !passed {
-                    vec!["Market approaching phase transition", "Reduce exposure"]
+                    vec!["Market approaching phase transition".to_string(), "Reduce exposure".to_string()]
                 } else {
-                    vec!["Quantum coherence favorable"]
+                    vec!["Quantum coherence favorable".to_string()]
                 },
             },
         }
@@ -669,8 +701,8 @@ impl ValidationModule for PortfolioOptimizationModule {
                 ),
                 recommendations: if !passed {
                     vec![
-                        "Position size exceeds Kelly criterion",
-                        "Consider rebalancing existing positions",
+                        "Position size exceeds Kelly criterion".to_string(),
+                        "Consider rebalancing existing positions".to_string(),
                         "Diversification needed",
                     ]
                 } else {
@@ -1021,7 +1053,7 @@ impl SuperiorStrikeValidator {
 
 // ===== SUPPORTING STRUCTURES =====
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
     pub module_id: u8,
     pub passed: bool,
@@ -1030,7 +1062,7 @@ pub struct ValidationResult {
     pub diagnostics: ValidationDiagnostics,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationDiagnostics {
     pub primary_metric: f64,
     pub secondary_metrics: HashMap<String, f64>,
@@ -1086,7 +1118,7 @@ pub enum Severity {
     Low,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MarketState {
     pub regime: MarketRegime,
     pub volatility_percentile: f64,
@@ -1095,7 +1127,7 @@ pub struct MarketState {
     pub correlation_breakdown: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum MarketRegime {
     BullTrend,
     BearTrend,
@@ -1107,7 +1139,7 @@ pub enum MarketRegime {
     Unknown,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PortfolioState {
     pub total_value: f64,
     pub positions: HashMap<String, Position>,
@@ -1132,7 +1164,7 @@ pub struct RiskMetrics {
     pub max_drawdown: f64,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HistoricalContext {
     pub win_rate_30d: f64,
     pub win_rate_90d: f64,
@@ -1147,7 +1179,7 @@ pub struct ModulePerformance {
     pub avg_execution_time_ms: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailureRecord {
     pub timestamp: DateTime<Utc>,
     pub module_id: u8,
@@ -1337,13 +1369,15 @@ impl Default for ValidationState {
     }
 }
 
-use crate::api::OrderBook;
+use crate::api::{OrderBook, OrderBookLevel};
 
 impl Default for OrderBook {
     fn default() -> Self {
         Self {
+            symbol: String::new(),
             bids: Vec::new(),
             asks: Vec::new(),
+            timestamp: std::time::SystemTime::now(),
         }
     }
 }

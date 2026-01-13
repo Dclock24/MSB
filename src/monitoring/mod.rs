@@ -34,6 +34,9 @@ pub enum MetricType {
     // Risk metrics
     Exposure,
     DrawDown,
+    
+    // Strike metrics
+    StrikeOptimized,
     SharpeRatio,
     MaxDrawDown,
 }

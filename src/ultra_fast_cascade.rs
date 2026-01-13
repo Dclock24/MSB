@@ -37,7 +37,7 @@ pub struct CascadePattern {
     pub sources: Vec<SignalSource>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum CascadeType {
     WhaleAccumulation,      // Large wallets accumulating
     SmartMoneyFlow,         // Known profitable wallets moving
@@ -56,7 +56,7 @@ pub struct SignalSource {
     pub reliability_score: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum SourceType {
     WhaleWallet(String),
     SmartContract(String),
@@ -601,7 +601,7 @@ impl UltraFastCascadeDetector {
         if anomaly_score > 1.0 {
             return Some(Signal {
                 source_type: SourceType::MempoolTransaction("anomaly".to_string()),
-                strength: (anomaly_score / 2.0).min(1.0),
+                strength: ((anomaly_score / 2.0) as f64).min(1.0),
                 timestamp: now,
                 reliability: 0.85,
             });
@@ -627,7 +627,7 @@ impl UltraFastCascadeDetector {
                 
                 let velocity = current_rate / avg_rate.max(0.1);
                 total_velocity += velocity;
-                max_platform_velocity = max_platform_velocity.max(velocity);
+                        max_platform_velocity = max_platform_velocity.max(velocity as f64);
             }
         }
         
@@ -648,7 +648,7 @@ impl UltraFastCascadeDetector {
         if max_platform_velocity > 5.0 || influencer_signal {
             return Some(Signal {
                 source_type: SourceType::SocialInfluencer("aggregate".to_string()),
-                strength: (max_platform_velocity / 10.0).min(1.0),
+                strength: ((max_platform_velocity / 10.0) as f64).min(1.0),
                 timestamp: now,
                 reliability: if influencer_signal { 0.90 } else { 0.82 },
             });
