@@ -27,6 +27,8 @@ pub mod errors;
 pub mod volume_oscillator_fixed;
 pub mod consensus_layer_integration;
 pub mod trade_test_harness;
+pub mod historical_backtest;
+pub mod live_simulation;
 #[cfg(feature = "eip")]
 pub mod diamond_integration;
 

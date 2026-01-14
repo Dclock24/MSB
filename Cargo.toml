@@ -15,6 +15,10 @@ path = "src/bin/trading_engine_simple.rs"
 name = "run_1500_trades"
 path = "src/bin/run_1500_trades.rs"
 
+[[bin]]
+name = "backtest_5_years"
+path = "src/bin/backtest_5_years.rs"
+
 [lib]
 name = "macro_strike_bot_fixed"
 path = "src/lib.rs"
