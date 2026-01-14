@@ -21,11 +21,13 @@ pub mod proprietary_backtest;
 pub mod elite_quant_framework;
 pub mod elite_800k_optimizer;
 pub mod hummingbot_array_system;
+#[cfg(feature = "eip")]
 pub mod amm_predictive_arbitrage;
 pub mod errors;
 pub mod volume_oscillator_fixed;
 pub mod consensus_layer_integration;
 pub mod trade_test_harness;
+#[cfg(feature = "eip")]
 pub mod diamond_integration;
 
 #[cfg(feature = "eip")]

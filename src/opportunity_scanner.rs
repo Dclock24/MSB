@@ -201,9 +201,15 @@ impl OpportunityScanner {
     pub async fn start_scanning(&self) {
         info!("Starting opportunity scanner for 90% win rate patterns");
         
+        // Default trading pairs
+        let symbols = vec![
+            "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT",
+            "MATIC/USDT", "LINK/USDT", "DOT/USDT", "ATOM/USDT"
+        ];
+        
         loop {
             // Scan all configured pairs
-            for symbol in SYMBOLS.iter() {
+            for symbol in symbols.iter() {
                 self.scan_symbol(symbol).await;
             }
             

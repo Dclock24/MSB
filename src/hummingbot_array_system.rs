@@ -265,9 +265,9 @@ impl HummingbotArray {
         println!("║   Win Rate:            {:.1}%                                 ║", stats.win_rate * 100.0);
         println!("║                                                               ║");
         println!("║ FINANCIAL METRICS                                             ║");
-        println!("║   Starting Capital:    ${:>12,.2}                         ║", INITIAL_CAPITAL);
-        println!("║   Current Capital:     ${:>12,.2}                         ║", self.total_capital);
-        println!("║   Cycle Profit:        ${:>12,.2}                         ║", self.cycle_profits);
+        println!("║   Starting Capital:    ${:>12.2}                         ║", INITIAL_CAPITAL);
+        println!("║   Current Capital:     ${:>12.2}                         ║", self.total_capital);
+        println!("║   Cycle Profit:        ${:>12.2}                         ║", self.cycle_profits);
         println!("║   Total Return:        {:.1}%                                 ║", 
             (self.cycle_profits / INITIAL_CAPITAL) * 100.0);
         println!("║   Per Bot Average:     {:.1}%                                 ║", 
@@ -279,8 +279,8 @@ impl HummingbotArray {
         println!("║   Risk Utilization:    {:.1}%                                 ║", stats.risk_utilization * 100.0);
         println!("║                                                               ║");
         println!("║ 14-DAY PROJECTION                                             ║");
-        println!("║   Target (200%):       ${:>12,.2}                         ║", INITIAL_CAPITAL * 2.0);
-        println!("║   Current Pace:        ${:>12,.2}                         ║", 
+        println!("║   Target (200%):       ${:>12.2}                         ║", INITIAL_CAPITAL * 2.0);
+        println!("║   Current Pace:        ${:>12.2}                         ║", 
             self.project_14_day_return());
         println!("║   On Track:            {}                                     ║",
             if self.is_on_track() { "✅ YES" } else { "⚠️  ADJUST" });

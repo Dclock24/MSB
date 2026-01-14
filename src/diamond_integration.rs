@@ -2,7 +2,9 @@
 // Rust backend connection to MacroStrikeDiamond contract
 
 use crate::errors::{TradingResult, TradingError};
+#[cfg(feature = "eip")]
 use ethers::prelude::*;
+#[cfg(feature = "eip")]
 use ethers::contract::Contract;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
@@ -30,15 +32,16 @@ impl DiamondClient {
         let diamond_address: Address = DIAMOND_ADDRESS.parse()
             .map_err(|_| TradingError::InvalidInput("Invalid diamond address".to_string()))?;
         
-        // Load StrikeBotFacet ABI
-        let strike_bot_abi = include_bytes!("../contracts/abis/StrikeBotFacet.json");
+        // Load StrikeBotFacet ABI (optional - will be generated during contract compilation)
+        // For now, using mock contract interface
+        let strike_bot_abi = b"[]"; // Empty ABI for now - will be replaced with actual ABI after compilation
         let strike_bot = Contract::from_json(
             diamond_address,
             strike_bot_abi
         ).map_err(|e| TradingError::InvalidInput(format!("Failed to load StrikeBot ABI: {}", e)))?;
         
-        // Load AMMBotFacet ABI
-        let amm_bot_abi = include_bytes!("../contracts/abis/AMMBotFacet.json");
+        // Load AMMBotFacet ABI (optional - will be generated during contract compilation)
+        let amm_bot_abi = b"[]"; // Empty ABI for now - will be replaced with actual ABI after compilation
         let amm_bot = Contract::from_json(
             diamond_address,
             amm_bot_abi

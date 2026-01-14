@@ -170,13 +170,13 @@ impl Capital800KManager {
         println!("\n╔════════════════════════════════════════════════╗");
         println!("║         $800K CAPITAL STATUS REPORT            ║");
         println!("╠════════════════════════════════════════════════╣");
-        println!("║ Initial Capital:    ${:>12,.2}            ║", INITIAL_CAPITAL);
-        println!("║ Current Capital:    ${:>12,.2}            ║", self.total_capital);
-        println!("║ Deployed Capital:   ${:>12,.2}            ║", self.deployed_capital);
-        println!("║ Reserved Capital:   ${:>12,.2}            ║", self.reserved_capital);
+        println!("║ Initial Capital:    ${:>12.2}            ║", INITIAL_CAPITAL);
+        println!("║ Current Capital:    ${:>12.2}            ║", self.total_capital);
+        println!("║ Deployed Capital:   ${:>12.2}            ║", self.deployed_capital);
+        println!("║ Reserved Capital:   ${:>12.2}            ║", self.reserved_capital);
         println!("║                                                ║");
-        println!("║ Daily P&L:          ${:>12,.2}            ║", self.daily_pnl);
-        println!("║ Total P&L:          ${:>12,.2}            ║", self.total_pnl);
+        println!("║ Daily P&L:          ${:>12.2}            ║", self.daily_pnl);
+        println!("║ Total P&L:          ${:>12.2}            ║", self.total_pnl);
         println!("║ Return:             {:>12.2}%            ║", (self.total_pnl / INITIAL_CAPITAL) * 100.0);
         println!("║                                                ║");
         println!("║ Current Leverage:   {:>12.1}x            ║", self.leverage_used);
@@ -621,7 +621,7 @@ impl PerformanceOptimizer800K {
         println!("║         $800K PERFORMANCE OPTIMIZATION REPORT        ║");
         println!("╠══════════════════════════════════════════════════════╣");
         println!("║ RETURNS                                              ║");
-        println!("║   Total P&L:           ${:>12,.2}                ║", metrics.total_pnl);
+        println!("║   Total P&L:           ${:>12.2}                ║", metrics.total_pnl);
         println!("║   Total Return:        {:>12.2}%                ║", metrics.total_return_pct);
         println!("║   Annualized Return:   {:>12.2}%                ║", metrics.annualized_return_pct);
         println!("║                                                      ║");
@@ -665,7 +665,7 @@ impl PerformanceOptimizer800K {
         for (months, label) in milestones {
             let days = months * 21; // Trading days per month
             capital *= (1.0 + daily_return).powi(days);
-            println!("   {} : ${:>12,.2}", label, capital);
+            println!("   {} : ${:>12.2}", label, capital);
         }
     }
 }
@@ -840,8 +840,8 @@ pub async fn run_800k_optimizer() {
         // Simulated market data
         let market_data = MarketData {
             symbol: "BTC-USD".to_string(),
-            price: 50000.0 + (rand::random::<f64>() - 0.5) * 1000.0,
-            volume: 100000.0 + rand::random::<f64>() * 50000.0,
+            price: 50000.0 + (random_value::<f64>() - 0.5) * 1000.0,
+            volume: 100000.0 + random_value::<f64>() * 50000.0,
             timestamp: chrono::Utc::now().timestamp(),
         };
         
@@ -849,13 +849,13 @@ pub async fn run_800k_optimizer() {
         coordinator.execute_trading_cycle(&market_data).await;
         
         // Update performance metrics
-        if rand::random::<f64>() > 0.5 {
-            let pnl = (rand::random::<f64>() - 0.4) * 5000.0; // Simulated P&L
+        if random_value::<f64>() > 0.5 {
+            let pnl = (random_value::<f64>() - 0.4) * 5000.0; // Simulated P&L
             performance_optimizer.update_trade(pnl);
         }
         
         // Print performance report periodically
-        if rand::random::<f64>() > 0.95 {
+        if random_value::<f64>() > 0.95 {
             performance_optimizer.print_report();
         }
         
@@ -864,7 +864,7 @@ pub async fn run_800k_optimizer() {
 }
 
 // Helper function for random number generation
-fn rand::random<T>() -> T 
+fn random_value<T>() -> T 
 where
     rand::distributions::Standard: rand::distributions::Distribution<T>,
 {

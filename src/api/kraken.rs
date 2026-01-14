@@ -2,7 +2,7 @@
 // Provides trading execution and account management
 
 use super::{
-    ApiConfig, ApiResult, Balance, Order, OrderResponse, OrderSide, OrderStatus, OrderType,
+    ApiConfig, ApiResult, Balance, Order, OrderBook, OrderBookLevel, OrderResponse, OrderSide, OrderStatus, OrderType,
     TradingExchange,
 };
 use base64::Engine;

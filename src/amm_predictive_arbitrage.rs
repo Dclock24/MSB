@@ -8,6 +8,7 @@ use tokio::sync::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, Duration};
 use statistical::{mean, standard_deviation, correlation};
+#[cfg(feature = "eip")]
 use ethers::types::{Address, U256, H256};
 
 const TARGET_SUCCESS_RATE: f64 = 0.93; // 93% success rate target
