@@ -102,19 +102,20 @@ impl HistoricalBacktester {
             
             while current_date < end_date {
                 // Simulate price movement
-                price += (rand::random::<f64>() - 0.5) * 100.0;
+                use rand::Rng;
+                price += (rand::thread_rng().gen::<f64>() - 0.5) * 100.0;
                 
                 data_points.push(HistoricalDataPoint {
                     timestamp: current_date,
                     symbol: symbol.clone(),
                     price,
-                    volume: 1000000.0 + rand::random::<f64>() * 500000.0,
+                    volume: 1000000.0 + rand::thread_rng().gen::<f64>() * 500000.0,
                     high: price * 1.01,
                     low: price * 0.99,
                     open: price,
                     close: price,
-                    trades: 1000 + (rand::random::<f64>() * 500.0) as u64,
-                    liquidity: 0.95 + rand::random::<f64>() * 0.05,
+                    trades: 1000 + (rand::thread_rng().gen::<f64>() * 500.0) as u64,
+                    liquidity: 0.95 + rand::thread_rng().gen::<f64>() * 0.05,
                 });
                 
                 current_date = current_date + Duration::minutes(1);
@@ -292,7 +293,8 @@ impl HistoricalBacktester {
                     let price_change = (exit_price - entry_price) / entry_price;
                     
                     // Simulate 93% win rate
-                    let success = rand::random::<f64>() < REQUIRED_WIN_RATE;
+                    use rand::Rng;
+                    let success = rand::thread_rng().gen::<f64>() < REQUIRED_WIN_RATE;
                     
                     if success {
                         successful_trades += 1;
@@ -422,7 +424,8 @@ impl HistoricalBacktester {
     fn should_trade(window: &[HistoricalDataPoint]) -> bool {
         // Simplified trading logic
         // In production, this would use your actual strategy
-        window.len() >= 100 && rand::random::<f64>() < 0.1 // 10% of windows
+        use rand::Rng;
+        window.len() >= 100 && rand::thread_rng().gen::<f64>() < 0.1 // 10% of windows
     }
 
     async fn calculate_data_quality_score(&self) -> f64 {
@@ -457,5 +460,4 @@ impl HistoricalBacktester {
 }
 
 use log::info;
-use rand::Rng;
 

@@ -1,0 +1,24 @@
+[package]
+name = "strike_box"
+version = "1.0.0"
+edition = "2021"
+authors = ["Byt Block LLC"]
+description = "Institutional Bilateral Execution Framework"
+license = "Proprietary"
+
+[dependencies]
+rust_decimal = { version = "1.33", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio = { version = "1.35", features = ["full", "test-util"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+

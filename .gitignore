@@ -37,3 +37,7 @@ test_results_*.json
 # Temporary files
 *.tmp
 *.bak
+
+# Strike Box build artifacts
+strike_box/target/
+strike_box/Cargo.lock

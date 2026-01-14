@@ -1,6 +1,7 @@
 # Hummingbot Array Configuration
-# 25 Bot Coordinated Strike System - 200% Returns Every 14 Days
+# 25 Bot Coordinated Strike System - 200% Returns Every 7 Days
 # Conservative 3-5x Leverage, Aggressive Parallelization
+# Integrated with Strike Box Institutional Framework
 
 system:
   name: "Hummingbot Array Strike Force"
@@ -24,8 +25,8 @@ bots:
 targets:
   per_bot_per_cycle: 0.08  # 8% per bot
   total_per_cycle: 2.0  # 200% total (8% × 25)
-  cycle_days: 14
-  daily_target: 0.143  # 14.3% daily to hit 200% in 14 days
+  cycle_days: 7  # 7-day cycles (CHANGED FROM 14)
+  daily_target: 0.286  # 28.6% daily to hit 200% in 7 days
   
 leverage:
   conservative: 3.0
@@ -157,7 +158,7 @@ monitoring:
   reporting:
     frequency: "hourly"
     detailed_report: "daily"
-    cycle_report: "14_days"
+    cycle_report: "7_days"  # Updated from 14_days
     
 execution:
   order_types:
@@ -176,30 +177,30 @@ execution:
     
 performance_targets:
   daily:
-    profit: 114400  # 14.3% of 800K
+    profit: 228800  # 28.6% of 800K (200% / 7 days)
     trades: 500  # 20 per bot
     win_rate: 0.65
     
   weekly:
-    profit: 800000  # 100% return
+    profit: 1600000  # 200% return (7-day cycle)
     compound_growth: 2.0
     
-  cycle_14_days:
+  cycle_7_days:
     profit: 1600000  # 200% return
     final_capital: 2400000  # $800K → $2.4M
     
 projections:
-  conservative:  # 150% per 14 days
-    cycle_1: 2000000   # Day 14
-    cycle_2: 5000000   # Day 28
-    cycle_3: 12500000  # Day 42
+  conservative:  # 150% per 7 days
+    cycle_1: 2000000   # Day 7
+    cycle_2: 5000000   # Day 14
+    cycle_3: 12500000  # Day 21
     
-  target:  # 200% per 14 days
-    cycle_1: 2400000   # Day 14
-    cycle_2: 7200000   # Day 28
-    cycle_3: 21600000  # Day 42
+  target:  # 200% per 7 days
+    cycle_1: 2400000   # Day 7
+    cycle_2: 7200000   # Day 14
+    cycle_3: 21600000  # Day 21
     
-  aggressive:  # 250% per 14 days
-    cycle_1: 2800000   # Day 14
-    cycle_2: 9800000   # Day 28
-    cycle_3: 34300000  # Day 42
+  aggressive:  # 250% per 7 days
+    cycle_1: 2800000   # Day 7
+    cycle_2: 9800000   # Day 14
+    cycle_3: 34300000  # Day 21

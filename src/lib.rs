@@ -29,6 +29,8 @@ pub mod consensus_layer_integration;
 pub mod trade_test_harness;
 pub mod historical_backtest;
 pub mod live_simulation;
+pub mod rug_pull_detector;
+// Strike Box is now a separate crate - use as dependency
 #[cfg(feature = "eip")]
 pub mod diamond_integration;
 
