@@ -1,11 +1,15 @@
 # Macro Strike Bot (MSB)
-## Elite Quantitative Trading System with 3-Layer Diamond Architecture
+## Enterprise-Grade Quantitative Trading System
+### Advanced 3-Layer Diamond Architecture | Institutional-Grade Execution
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Commercial-red.svg)](ENTERPRISE_LICENSING.md)
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 [![Solidity](https://img.shields.io/badge/solidity-^0.8.19-blue.svg)](https://soliditylang.org/)
+[![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)](PRODUCTION_READINESS.md)
 
-**Production-ready high-frequency trading system with 100 coordinated bots achieving 93% win rate through predictive analytics and Diamond Facet smart contract architecture.**
+**Institutional-grade high-frequency trading system with 100 coordinated bots achieving 93%+ win rate through advanced predictive analytics, multi-layer Diamond Facet smart contract architecture, and enterprise-level risk management.**
+
+> **⚠️ Commercial License Required**: This software is proprietary and requires a commercial license for use. See [ENTERPRISE_LICENSING.md](ENTERPRISE_LICENSING.md) for details.
 
 ---
 
@@ -401,9 +405,15 @@ This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENS
 
 ---
 
-## ⚠️ Disclaimer
+## ⚠️ Disclaimer & Licensing
 
-This software is provided for educational and research purposes. Trading cryptocurrencies involves substantial risk. Past performance does not guarantee future results. Use at your own risk.
+**Commercial License Required**: This software is proprietary and requires a commercial license for use. Unauthorized distribution, modification, or commercial use is strictly prohibited.
+
+**Risk Disclaimer**: Trading cryptocurrencies involves substantial risk. Past performance does not guarantee future results. This system is designed for sophisticated institutional traders with appropriate risk management capabilities.
+
+**Regulatory Compliance**: Users must ensure compliance with all applicable financial regulations, including but not limited to securities laws, anti-money laundering regulations, and exchange-specific requirements.
+
+See [ENTERPRISE_LICENSING.md](ENTERPRISE_LICENSING.md) for complete licensing terms.
 
 ---
 
